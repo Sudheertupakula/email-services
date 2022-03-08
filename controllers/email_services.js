@@ -8,11 +8,14 @@ const { ReE, ReS } = require('../util.services');
 const scheduler = {}
 
 async function save_email(request, res) {
-    let object = new email_services(request);
-    object.save((err) => {
-        if (err) return ReE(res, err.message);
-    });
-    return object
+    try{
+        let object = new email_services(request);
+        await object.save()
+        return object
+    }
+    catch(err){
+        throw err
+    }
 }
 
 let mailTransporter = nodemailer.createTransport({
@@ -65,7 +68,7 @@ module.exports.scheduleEmail = async (req, res) => {
         return ReE(res, "cannot schedule time in past")
     }
     catch (err) {
-        return ReE(res, "scheduling email failed")
+        return ReE(res, err.message)
     }
 
 };
