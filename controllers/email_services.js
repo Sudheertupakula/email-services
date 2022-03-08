@@ -7,7 +7,7 @@ const { ReE, ReS } = require('../util.services');
 
 const scheduler = {}
 
-async function save_email(request, res) {
+async function saveEmail(request, res) {
     try{
         let object = new email_services(request);
         await object.save()
@@ -37,12 +37,26 @@ async function generate_email(id) {
     return mailDetails
 }
 
-async function send_email(id) {
+async function updateStatus(id,status){
+    updated_email = await email_services.updateOne(
+        {
+            _id: mongoose.Types.ObjectId(id),
+        },
+        {
+            $set: {"status":status},
+        },
+    );
+    return updated_email
+}
+
+async function sendEmail(id) {
     let mailDetails = await generate_email(id)
-    mailTransporter.sendMail(mailDetails, function (err) {
+    mailTransporter.sendMail(mailDetails, async function (err) {
         if (err) {
+            await updateStatus(id,"failed")
             throw err
         } else {
+            await updateStatus(id,"success")
             delete scheduler[request["_id"]] // deletes the schedule job from scheduler after executing
         }
     });
@@ -52,7 +66,7 @@ async function send_email(id) {
 
 async function schedule(request, res) {
     try {
-        scheduler[request["_id"]] = nodeschedule.scheduleJob(new Date(request.scheduled_time), () => send_email(request["_id"]));
+        scheduler[request["_id"]] = nodeschedule.scheduleJob(new Date(request.scheduled_time), () => sendEmail(request["_id"]));
         return scheduler[request["_id"]]
     }
     catch (err) {
@@ -62,7 +76,7 @@ async function schedule(request, res) {
 
 module.exports.scheduleEmail = async (req, res) => {
     try {
-        let email = await save_email(req.body, res)
+        let email = await saveEmail(req.body, res)
         let schedule_email = await schedule(email, res)
         if (schedule_email) return ReS(res, { data: email, message: "successfully scheduled" })
         return ReE(res, "cannot schedule time in past")
@@ -148,3 +162,22 @@ module.exports.updateEmail = async (req, res) => {
         return ReE(res, err.message);
     }
 };
+
+module.exports.getByStatus = async(req,res) =>{
+    try {
+        const status = req.query.email_status 
+
+        let email = await email_services.find({"status":status})
+        if (email) {
+            return ReS(res, { data: email, message: "success" })
+        }
+        else {
+            return ReS(res, { data: email, message: "No data found" })
+        }
+    }
+    catch (err) {
+        console.log(err);
+        // return ReE(res, err.message);
+    } 
+}
+

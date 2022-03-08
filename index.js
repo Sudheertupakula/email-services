@@ -16,6 +16,8 @@ app.use(cors());
  */
 app.post("/", email_services.scheduleEmail)
 
+app.get("/status",email_services.getByStatus)
+
 app.get("/:id", email_services.readEmail)
 
 app.get("/", email_services.emailList)
